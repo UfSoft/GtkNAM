@@ -15,7 +15,8 @@ log = logging.getLogger(__name__)
 
 class SourcesManager(component.Component):
     def __init__(self):
-        component.Component.__init__(self, "SourcesManager")
+        component.Component.__init__(self, "SourcesManager",
+                                     depend=["DatabaseManager"])
         self.sources = {}
 
     def start(self):
@@ -39,10 +40,8 @@ class SourcesManager(component.Component):
     def load_sources_from_db(self):
         session = self.db.session()
         for item in session.query(Source).all():
-            if item.id in self.sources:
-                continue
             self.sources[item.id] = source.Source(item)
-#            self.sources[item.id].start()
+            component.get("EventManager").emit(SourceLoaded(item.id))
 
     def add_source(self, name, uri):
         session = component.get("DatabaseManager").session()
@@ -67,14 +66,18 @@ class SourcesManager(component.Component):
     def alter_source(self, id, name, uri):
         pass
 
-    def get_sources_list(self):
-        session = component.get("DatabaseManager").session()
+    def get_sources_list(self, disabled=False):
         sources = []
-        for source in session.query(Source).all():
-            sources.append(source.to_dict())
+        for source in self.sources.itervalues():
+            if not disabled and not source.src_enabled:
+                continue
+            sources.append(source.get_details())
         return sources
-        pass
 
     def __getitem__(self, source_id):
         return self.sources[source_id]
     get = get_source = __getitem__
+
+    def get_source_details(self, source_id):
+        return self.get_source(source_id).get_details()
+
