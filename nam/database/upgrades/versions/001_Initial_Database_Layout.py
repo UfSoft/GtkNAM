@@ -110,6 +110,9 @@ class MessageKind(DeclarativeBase):
     id              = db.Column(db.Integer, primary_key=True)
     kind            = db.Column(db.String)
 
+    def __init__(self, kind):
+        self.kind = kind
+
 
 class Messages(DeclarativeBase):
     __tablename__   = 'messages'
@@ -132,12 +135,14 @@ def upgrade(migrate_engine):
 
     auth = configmanager.get_config_dir("auth")
     passwd = gen_salt(8)
-    if not os.path.exists(auth):
-        open(auth, "w").write(passwd+"\n")
-        os.chmod(auth, stat.S_IREAD | stat.S_IWRITE)
+    open(auth, "w").write(passwd+"\n")
+    os.chmod(auth, stat.S_IREAD | stat.S_IWRITE)
 
     localuser = User('localuser', "Local User", passwd, 10)
     session.add(localuser)
+    # Add Message Kinds
+    for kind in ("ERROR", "WARNING", "OK"):
+        session.add(MessageKind(kind))
 
     # Add default sources
     source = Source("mms://195.245.168.21/antena1", "Antena 1", enabled=False)
