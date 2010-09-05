@@ -131,6 +131,9 @@ def start_ui():
 
 def start_daemon():
     """Entry point for daemon script"""
+
+    from twisted.internet import glib2reactor
+    glib2reactor.install()
     import nam.common
 
     if 'dev' not in nam.common.get_version():

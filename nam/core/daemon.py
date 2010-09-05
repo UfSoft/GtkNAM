@@ -41,8 +41,9 @@ import pkg_resources
 import pygst
 pygst.require("0.10")
 
-from twisted.internet import glib2reactor
-glib2reactor.install()
+import gobject
+gobject.threads_init()
+
 #from twisted.internet import gtk2reactor
 #gtk2reactor.install()
 
@@ -51,9 +52,6 @@ threadable.init()
 
 from twisted.internet import reactor
 import twisted.internet.error
-
-import gobject
-gobject.threads_init()
 
 import nam.component as component
 import nam.configmanager
@@ -165,6 +163,9 @@ class Daemon(object):
 
         # Make sure we start the PreferencesManager first
         component.start("PreferencesManager")
+#        component.start("EventManager")
+        component.start("DatabaseManager")
+#        component.start("SourcesManager")
 
         if not classic:
             # Write out a pid file all the time, we use this to see if a deluged
