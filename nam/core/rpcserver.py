@@ -117,6 +117,9 @@ def format_request(call):
 class NotAuthorizedError(error.NAMError):
     pass
 
+class RPCMethodUnknown(error.NAMError):
+    pass
+
 class ServerContextFactory(object):
     def getContext(self):
         """
@@ -280,7 +283,15 @@ class NAMRPCProtocol(Protocol):
             finally:
                 return
 
-        if method in self.factory.methods and \
+        if method not in self.factory.methods and \
+                self.transport.sessionno in self.factory.authorized_sessions:
+            try:
+                raise RPCMethodUnknown("Method \"%s\" unknown" % method)
+            except:
+                sendError()
+            finally:
+                return
+        elif method in self.factory.methods and \
                 self.transport.sessionno in self.factory.authorized_sessions:
             try:
                 method_auth_requirement = self.factory.methods[method]._rpcserver_auth_level
