@@ -598,7 +598,8 @@ def setup_logging():
         logging.basicConfig(
             level=logging.DEBUG,
             datefmt='%H:%M:%S',
-            format='%(asctime)s [%(name)-30s:%(lineno)-4s] %(levelname)-7.7s: %(message)s'
+            format='%(asctime)s.%(msecs)03.0f [%(name)-30s:%(lineno)-4s] %(levelname)-7.7s: %(message)s'
+#            format='%(asctime)s.%(msecs)03.0f [%(name)-30s] %(levelname)-7.7s: %(message)s'
         )
         logging.setLoggerClass(Logging)
 
