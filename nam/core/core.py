@@ -64,7 +64,7 @@ from nam.core.authmanager import AuthManager
 from nam.core.eventmanager import EventManager
 from nam.core.sourcesmanager import SourcesManager
 from nam.core.rpcserver import export
-from nam.database import AUTH_LEVEL_ADMIN
+from nam.database import AUTH_LEVEL_ADMIN, MessageKind
 
 log = logging.getLogger(__name__)
 
@@ -157,8 +157,34 @@ class Core(component.Component):
         self.sourcesmanager.alter_source(id, name, uri)
 
     @export
-    def get_sources(self):
-        return self.sourcesmanager.get_sources()
+    def get_source(self, id):
+        return self.sourcesmanager.get_source(id)
+
+    @export
+    def get_source_details(self, id):
+        return self.sourcesmanager.get_source_details(id)
+
+    @export
+    def get_sources_list(self, disabled=False):
+        return self.sourcesmanager.get_sources_list(disabled)
+
+    @export
+    def get_message_kinds(self):
+        session = component.get("DatabaseManager").session()
+        message_kinds = []
+        for kind in session.query(MessageKind).all():
+            message_kinds.append({'id': kind.id, 'kind': kind.kind})
+        return message_kinds
+
+    @export
+    def play_source(self, source_id):
+        log.debug("\n\n\nPlay Button Clicked on %s\n\n", source_id)
+        self.eventmanager.emit(SourcePlay(source_id))
+
+    @export()
+    def stop_source(self, source_id):
+        log.debug("\n\n\nStop Button Clicked on %s", source_id)
+        self.eventmanager.emit(SourceStop(source_id))
 
 #    @export
 #    def add_torrent_file(self, filename, filedump, options):
