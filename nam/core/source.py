@@ -8,11 +8,9 @@ Created on 27 Aug 2010
 
 import logging
 from nam import component
-import pygst
 from nam.event import *
 from nam.common import ftimenano, fsize
 from nam.core.checkers.silence import SilenceChecker
-pygst.require("0.10")
 import gst
 # GST Debugging
 gst.debug_set_active(True)
@@ -28,7 +26,8 @@ from twisted.internet import reactor
 
 log = logging.getLogger(__name__)
 
-ONE_SECOND_IN_NANOSECONDS = 1000000000
+STATUS_ERROR, STATUS_WARNING, STATUS_OK, STATUS_NONE = range(4)
+STATUS_PLAY, STATUS_PAUSE, STATUS_STOP = range(3)
 
 class Source(component.Component):
 
@@ -44,6 +43,9 @@ class Source(component.Component):
         self.gst_setup_complete = False
         self.evtm = component.get("EventManager")
         self.used_element_names = []
+        self.buffer_percent = 0
+        self.status = STATUS_NONE
+        self.running = STATUS_NONE
 
     def setup(self):
         if self.gst_setup_complete:
@@ -54,7 +56,7 @@ class Source(component.Component):
         self.bus.add_signal_watch()
         self.bus.connect('message::buffering',
                          self.check_bus_buffering_messages)
-        self.bus.add_watch(self.onBusMessage)
+#        self.bus.add_watch(self.onBusMessage)
 
         self.source = self.gst_element_factory_make('uridecodebin')
         self.source.set_property('uri', self.src_uri)
@@ -77,6 +79,7 @@ class Source(component.Component):
         self.pipeline.set_state(gst.STATE_PAUSED)
         self.source.set_state(gst.STATE_PAUSED)
         self.gst_setup_complete = True
+        self.running = STATUS_PAUSE
 
     def start(self):
         if not self.src_enabled:
@@ -86,8 +89,7 @@ class Source(component.Component):
         self.evtm.register_event_handler("SourcePause", self.pause_play)
         self.evtm.register_event_handler("SourceStop", self.stop_play)
         self.setup()
-        self.silence.start()
-        reactor.callLater(1, self.evtm.emit, SourcePlay(self.src_id))
+#        reactor.callLater(1, self.evtm.emit, SourcePlay(self.src_id))
 
 #        reactor.callLater(6, self.evtm.emit, SourcePause(self.src_id))
 #        reactor.callLater(8, self.add_autosink)
@@ -105,47 +107,46 @@ class Source(component.Component):
     def shutdown(self):
         self.silence.shutdown()
 
+    def set_status(self, status):
+        self.status = status
+
     def start_play(self, source_id):
         if source_id == self.src_id:
             ret, state, pending = self.pipeline.get_state(0)
 #            self.pipe2.set_state(gst.STATE_PLAYING)
             if state is not gst.STATE_PLAYING:
-                log.debug("Source \"%s\" PLAYING. Current state: %s", self.src_name, state)
+                log.debug("Source \"%s\" PLAYING. Current state: %s; Next State: %s",
+                          self.src_name, state, pending)
+                self.silence.start()
                 self.pipeline.set_state(gst.STATE_PLAYING)
                 self.evtm.emit(SourcePlaying(self.src_id))
-#            import pprint
-#            pprint.pprint(component._ComponentRegistry.components)
-
-        def query_position():
-
-            try:
-                position = self.pipeline.query_position(gst.Format(gst.FORMAT_TIME), None)
-                duration = self.pipeline.query_duration(gst.Format(gst.FORMAT_TIME), None)
-                log.trace("Current Position on \"%s\": %.2f%%", self.src_name,
-                          ((position[0]*100.0)/duration[0]))
-#                log.debug("Current Position on \"%s\": %.2f%%", self.src_name,
-#                          self.pipeline.query_position(gst.Format(gst.FORMAT_PERCENT), None)[0])
-            except Exception, err:
-                print err
-        from twisted.internet.task import LoopingCall
-        position_check = LoopingCall(query_position)
-        position_check.start(5)
+                self.status = STATUS_OK
+                self.running = STATUS_PLAY
 
     def stop_play(self, source_id):
         if source_id == self.src_id:
             ret, state, pending = self.pipeline.get_state(0)
             if state is not gst.STATE_NULL:
-                log.debug("Source \"%s\" STOPPING. Current state: %s", self.src_name, state)
+                log.debug("Source \"%s\" STOPPING. Current state: %s; Next State: %s",
+                          self.src_name, state, pending)
                 self.pipeline.set_state(gst.STATE_NULL)
                 self.evtm.emit(SourceStopped(self.src_id))
+                self.status = STATUS_NONE
+                self.running = STATUS_STOP
+                self.buffer_percent = 0
+                self.silence.stop()
 
     def pause_play(self, source_id):
         if source_id == self.src_id:
             ret, state, pending = self.pipeline.get_state(0)
             if state not in (gst.STATE_PAUSED, gst.STATE_READY):
-                log.debug("Source \"%s\" PAUSING. Current state: %s", self.src_name, state)
+                log.debug("Source \"%s\" PAUSING. Current state: %s; Next State: %s",
+                          self.src_name, state, pending)
                 self.pipeline.set_state(gst.STATE_PAUSED)
                 self.evtm.emit(SourcePaused(self.src_id))
+                self.status = STATUS_NONE
+                self.running = STATUS_PAUSE
+                self.buffer_percent = 0
 
     def onBusMessage(self, bus, message):
         log.debug("\nonBusMessage: %s\n", message.structure)
@@ -166,7 +167,8 @@ class Source(component.Component):
             if element_name in self.used_element_names:
                 n = 1
                 while True:
-                    element_name = "%s-%d-%d" % (gst_element_name, self.src_id, n)
+                    element_name = "%s-%d-%d" % (gst_element_name,
+                                                 self.src_id, n)
                     if element_name in self.used_element_names:
                         n += 1
                     else:
@@ -175,7 +177,6 @@ class Source(component.Component):
         return gst.element_factory_make(gst_element_name, element_name)
 
     def on_pad_added(self, dbin, sink_pad):
-        print '\n\n\n123'
         c = sink_pad.get_caps().to_string()
         if c.startswith("audio/"):
             self.convert = self.gst_element_factory_make('audioconvert')
@@ -187,14 +188,14 @@ class Source(component.Component):
             self.pipeline.add(self.tee)
 
             self.queue = self.gst_element_factory_make('queue')
-            self.queue.set_property("max-size-time", 2*ONE_SECOND_IN_NANOSECONDS)
+#            self.queue.set_property("max-size-time", 2*gst.NSECOND)
             self.pipeline.add(self.queue)
 
 #            self.sink = self.gst_element_factory_make('alsasink')
 #            self.sink = self.gst_element_factory_make('autoaudiosink')
 
             self.sink = self.gst_element_factory_make('fakesink')
-#            self.sink.set_property('sync', True)
+            self.sink.set_property('sync', True)
 
             self.pipeline.add(self.sink)
 
@@ -325,23 +326,30 @@ class Source(component.Component):
             os.system("/usr/bin/dot -Tpng -o"+ pngfile2 +" "+ dotfile2)
         reactor.callLater(5, write_image)
         log.debug(self.pipeline.get_state(0))
-#        self.pipeline.set_state(gst.STATE_PLAYING)
-        #reactor.callLater(4, self.evtm.emit, SourcePlay(self.src_id))
-#        reactor.callLater(4, self.pipeline.set_state, gst.STATE_PLAYING)
-#        reactor.callLater(6, log.debug, self.pipeline.get_state(0))
-#        reactor.callLater(8, self.evtm.emit, SourcePlay(self.src_id))
-#        reactor.callLater(10, log.debug, self.pipeline.get_state(0))
 
 
     def check_bus_buffering_messages(self, bus, message):
-        buffer_percent = message.structure['buffer-percent']
-        log.trace("Source \"%s\" Buffer at %s%%", self.src_name, buffer_percent)
-        self.evtm.emit(SourceBufferingEvent(self.src_id, buffer_percent))
-        if buffer_percent == 100:
+        self.buffer_percent = message.structure['buffer-percent']
+        log.trace("Source \"%s\" Buffer at %s%%", self.src_name, self.buffer_percent)
+        self.evtm.emit(SourceBufferingEvent(self.src_id, self.buffer_percent))
+        if self.buffer_percent == 100:
             self.evtm.emit(SourceBufferedEvent(self.src_id))
             self.evtm.emit(SourcePlay(self.src_id))
-        elif buffer_percent <= 40:
+        elif self.buffer_percent <= 40:
             self.evtm.emit(SourcePause(self.src_id))
+
+    def get_details(self):
+        return {
+            'id': self.src_id,
+            'uri': self.src_uri,
+            'name': self.src_name,
+            'status': self.status,
+            'running': self.running,
+            'enabled': self.src_enabled,
+            'buffer_size': self.src_buffer_size,
+            'buffer_duration': self.src_buffer_duration,
+            'buffer_percent': self.buffer_percent
+        }
 
         # http://gst.ufsoft.org/AFM/file/eb88c8c530ab/afm/sources.py
 
