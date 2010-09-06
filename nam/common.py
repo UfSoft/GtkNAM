@@ -589,36 +589,3 @@ def get_localhost_auth():
                 return (username, password)
     return ("", "")
 
-def setup_logging():
-    import logging
-    from nam.utils.logger import Logging
-    from twisted.python.log import PythonLoggingObserver
-
-    if logging.getLoggerClass() is not Logging:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            datefmt='%H:%M:%S',
-            format='%(asctime)s.%(msecs)03.0f [%(name)-30s:%(lineno)-4s] %(levelname)-7.7s: %(message)s'
-#            format='%(asctime)s.%(msecs)03.0f [%(name)-30s] %(levelname)-7.7s: %(message)s'
-        )
-        logging.setLoggerClass(Logging)
-
-        logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
-        logging.getLogger('migrate').setLevel(logging.INFO)
-
-        twisted_logging = PythonLoggingObserver('twisted')
-        twisted_logging.start()
-    logging.addLevelName(5, "TRACE")
-
-def set_loglevel(logger, loglevel):
-    log_levels = {
-        "none": logging.NOTSET,
-        "info": logging.INFO,
-        "warn": logging.WARN,
-        "warning": logging.WARNING,
-        "error": logging.ERROR,
-        "critical": logging.CRITICAL,
-        "debug": logging.DEBUG,
-        "trace": 5
-    }
-    logger.setLevel(log_levels[loglevel.lower()])

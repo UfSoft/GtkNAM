@@ -34,6 +34,7 @@
 #
 
 from optparse import OptionParser, OptionGroup
+
 import nam.common
 import nam.configmanager
 import os
@@ -88,12 +89,11 @@ class _UI(object):
         if self.__options.quiet:
             self.__options.loglevel = "none"
 
-        nam.common.setup_logging()
         import logging
-        nam.common.set_loglevel(logging.getLogger('nam'), self.__options.loglevel)
+        from nam.utils.logger import set_loglevel
+        set_loglevel(logging.getLogger('nam'), self.__options.loglevel)
 
         log = logging.getLogger(__name__)
-        print 1234, log.__class__
 
         if self.__options.config:
             if not nam.configmanager.set_config_dir(self.__options.config):
@@ -107,9 +107,9 @@ class _UI(object):
 
 class UI:
     def __init__(self, options, args, ui_args):
-        nam.common.setup_logging()
         import logging
-        nam.common.set_loglevel(logging.getLogger('nam'), options.loglevel)
+        from nam.utils.logger import set_loglevel
+        set_loglevel(logging.getLogger('nam'), options.loglevel)
 
         log = logging.getLogger(__name__)
 #        import logging

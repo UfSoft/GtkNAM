@@ -33,6 +33,11 @@
 #
 #
 
+
+# This needs to be done pretty early
+from nam.utils.logger import set_loglevel, setup_logging
+setup_logging()
+
 # Install the twisted reactor
 from twisted.internet import gtk2reactor
 reactor = gtk2reactor.install()
@@ -91,6 +96,7 @@ from nam.ui.gtkui import dialogs
 from nam.ui.gtkui import common
 from nam.ui.gtkui.messagesview import MessagesView
 from nam.ui.gtkui.sourcesview import SourcesView
+from nam.ui.gtkui.sourcesmanager import SourcesManager
 from nam.ui.gtkui.statusbar import StatusBar
 from nam.ui.gtkui.toolbar import ToolBar
 
@@ -235,6 +241,7 @@ class GtkUI(object):
 #        self.statusbar = StatusBar()
 #        self.addtorrentdialog = AddTorrentDialog()
         self.sourcesview = SourcesView()
+        self.sourcesmanager = SourcesManager()
         self.messagesview = MessagesView()
         self.statusbar = StatusBar()
         self.toolbar = ToolBar()

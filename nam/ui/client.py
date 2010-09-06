@@ -301,7 +301,7 @@ class DaemonSSLProxy(DaemonProxy):
 
         """
         # Create the NAMRPCRequest to pass to protocol.send_request()
-        log.debug("Calling method: %s  args: %s  kwargs: %s", method, args, kwargs)
+        log.trace("Calling method: %s  args: %s  kwargs: %s", method, args, kwargs)
         request = NAMRPCRequest()
         request.request_id = self.__request_counter
         request.method = method
@@ -562,7 +562,6 @@ class Client(object):
         """
         Starts a daemon in the same process as the client.
         """
-        nam.common.setup_logging()
         self._daemon_proxy = DaemonClassicProxy(self.__event_handlers)
         self.__started_in_classic = True
 

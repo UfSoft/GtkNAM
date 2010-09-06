@@ -44,6 +44,8 @@ import os
 import sys
 from optparse import OptionParser
 
+from nam.utils.logger import setup_logging, set_loglevel
+setup_logging()
 
 import nam.common
 import nam.configmanager
@@ -110,9 +112,8 @@ def start_ui():
         options.loglevel = "none"
 
     # XXX: Setup the logger
-    nam.common.setup_logging()
     import logging
-    nam.common.set_loglevel(logging.getLogger('nam'), options.loglevel)
+    set_loglevel(logging.getLogger('nam'), options.loglevel)
 
     log = logging.getLogger(__name__)
 
@@ -217,9 +218,8 @@ this should be an IP address", metavar="IFACE",
         pass
 
     # XXX: Setup the logger
-    nam.common.setup_logging()
     import logging
-    nam.common.set_loglevel(logging.getLogger('nam'), options.loglevel)
+    set_loglevel(logging.getLogger('nam'), options.loglevel)
 
     log = logging.getLogger(__name__)
 
