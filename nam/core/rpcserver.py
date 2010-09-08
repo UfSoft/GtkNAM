@@ -298,7 +298,7 @@ class NAMRPCProtocol(Protocol):
                 auth_level = self.factory.authorized_sessions[self.transport.sessionno][0]
                 if auth_level < method_auth_requirement:
                     # This session is not allowed to call this method
-                    log.debug("Session %s is trying to call a method it is not authorized to call!", self.transport.sessionno)
+                    log.warn("Session %s is trying to call a method it is not authorized to call!", self.transport.sessionno)
                     raise NotAuthorizedError("Auth level too low: %s < %s" % (auth_level, method_auth_requirement))
                 # Set the session_id in the factory so that methods can know
                 # which session is calling it.
@@ -471,11 +471,11 @@ class RPCServer(component.Component):
         :param event: the event to emit
         :type event: :class:`nam.event.NAMEvent`
         """
-        log.debug("intevents: %s", self.factory.interested_events)
+        log.trace("intevents: %s", self.factory.interested_events)
         # Find sessions interested in this event
         for session_id, interest in self.factory.interested_events.iteritems():
             if event.name in interest:
-                log.debug("Emit Event: %s %s", event.name, event.args)
+                log.trace("Emit Event: %s %s", event.name, event.args)
                 # This session is interested so send a RPC_EVENT
                 self.factory.session_protocols[session_id].sendData(
                     (RPC_EVENT, event.name, event.args)

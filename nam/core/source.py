@@ -348,7 +348,12 @@ class Source(component.Component):
             'enabled': self.src_enabled,
             'buffer_size': self.src_buffer_size,
             'buffer_duration': self.src_buffer_duration,
-            'buffer_percent': self.buffer_percent
+            'buffer_percent': self.buffer_percent,
+            'silence': {
+                'min_tolerance': self.silence.min_tolerance,
+                'max_tolerance': self.silence.max_tolerance,
+                'silence_level': self.silence.silence_level
+            }
         }
 
         # http://gst.ufsoft.org/AFM/file/eb88c8c530ab/afm/sources.py
