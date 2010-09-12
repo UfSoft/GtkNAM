@@ -21,6 +21,10 @@ class Logging(LoggingLoggerClass):
         LoggingLoggerClass.__init__(self, logger_name)
 
     @defer.inlineCallbacks
+    def garbage(self, msg, *args, **kwargs):
+        yield LoggingLoggerClass.log(self, 1, msg, *args, **kwargs)
+
+    @defer.inlineCallbacks
     def trace(self, msg, *args, **kwargs):
         yield LoggingLoggerClass.log(self, 5, msg, *args, **kwargs)
 
@@ -70,6 +74,7 @@ def setup_logging():
         twisted_logging = PythonLoggingObserver('twisted')
         twisted_logging.start()
         logging.addLevelName(5, "TRACE")
+        logging.addLevelName(1, "GARBAGE")
 
 def set_loglevel(logger, loglevel):
     log_levels = {
@@ -80,6 +85,7 @@ def set_loglevel(logger, loglevel):
         "error": logging.ERROR,
         "critical": logging.CRITICAL,
         "debug": logging.DEBUG,
-        "trace": 5
+        "trace": 5,
+        "garbage": 1
     }
     logger.setLevel(log_levels[loglevel.lower()])
