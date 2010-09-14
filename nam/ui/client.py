@@ -253,6 +253,7 @@ class DaemonSSLProxy(DaemonProxy):
 
         self.connected = False
 
+        self.connect_callback = None
         self.disconnect_deferred = None
         self.disconnect_callback = None
 
@@ -279,7 +280,8 @@ class DaemonSSLProxy(DaemonProxy):
         # Upon connect we do a 'daemon.login' RPC
         self.connect_deferred.addCallback(self.__on_connect, username, password)
         self.connect_deferred.addErrback(self.__on_connect_fail)
-
+#        if self.connect_callback:
+#            self.connect_callback()
         return self.login_deferred
 
     def disconnect(self):
@@ -389,7 +391,7 @@ class DaemonSSLProxy(DaemonProxy):
         msg += "\n" + "-" * 80
         msg += "\n" + "RPCRequest: " + r.__repr__()
         msg += "\n" + "-" * 80
-        msg += "\n" + error.traceback + "\n" + error.exception_type + ": " + error.exception_msg
+        msg += "\n%s\n%s\n%s" % (error.traceback, error.exception_type, error.exception_msg)
         msg += "\n" + "-" * 80
         log.error(msg)
         return error_data
@@ -408,11 +410,20 @@ class DaemonSSLProxy(DaemonProxy):
         # We need to tell the daemon what events we're interested in receiving
         if self.__factory.event_handlers:
             self.call("daemon.set_event_interest", self.__factory.event_handlers.keys())
+        if self.connect_callback:
+            self.connect_callback()
         self.login_deferred.callback(result)
 
     def __on_login_fail(self, result):
         log.debug("_on_login_fail(): %s", result)
         self.login_deferred.errback(result)
+
+    def set_connect_callback(self, cb):
+        """
+        Set a function to be called when the connection to the daemon is made
+        and authenticated properly.
+        """
+        self.connect_callback = cb
 
     def set_disconnect_callback(self, cb):
         """
@@ -431,6 +442,8 @@ class DaemonClassicProxy(DaemonProxy):
     def __init__(self, event_handlers={}):
         import nam.core.daemon
         self.__daemon = nam.core.daemon.Daemon(classic=True)
+        self.disconnect_callback = None
+        self.connect_callback = None
         log.debug("daemon created!")
         self.connected = True
         self.host = "localhost"
@@ -441,8 +454,15 @@ class DaemonClassicProxy(DaemonProxy):
             for handler in event_handlers[event]:
                 self.__daemon.core.eventmanager.register_event_handler(event, handler)
 
+    def connect(self):
+        if self.connect_callback:
+            self.connect_callback()
+
     def disconnect(self):
+        if self.disconnect_callback:
+            self.disconnect_callback()
         self.__daemon = None
+
 
     def call(self, method, *args, **kwargs):
         #log.debug("call: %s %s %s", method, args, kwargs)
@@ -483,6 +503,20 @@ class DaemonClassicProxy(DaemonProxy):
         """
         self.__daemon.core.eventmanager.deregister_event_handler(event, handler)
 
+    def set_connect_callback(self, cb):
+        """
+        Set a function to be called when the connection to the daemon is made
+        and authenticated properly.
+        """
+        self.connect_callback = cb
+
+    def set_disconnect_callback(self, cb):
+        """
+        Set a function to be called when the connection to the daemon is lost
+        for any reason.
+        """
+        self.disconnect_callback = cb
+
 class DottedObject(object):
     """
     This is used for dotted name calls to client
@@ -514,8 +548,8 @@ class Client(object):
 
     def __init__(self):
         self._daemon_proxy = None
-        self.connect_callback = None
-        self.disconnect_callback = None
+        self.connect_callbacks = []
+        self.disconnect_callbacks = []
         self.__started_in_classic = False
 
     def connect(self, host="127.0.0.1", port=56746, username="", password=""):
@@ -539,6 +573,7 @@ class Client(object):
             ).readline().strip()
 
         self._daemon_proxy = DaemonSSLProxy(dict(self.__event_handlers))
+        self._daemon_proxy.set_connect_callback(self.__on_connect)
         self._daemon_proxy.set_disconnect_callback(self.__on_disconnect)
         d = self._daemon_proxy.connect(host, port, username, password)
         def on_connect_fail(result):
@@ -546,8 +581,8 @@ class Client(object):
             self.disconnect()
             return result
 
-        if self.connect_callback:
-            d.addCallback(self.connect_callback)
+#        if self.connect_callback:
+#            d.addCallback(self.connect_callback)
         d.addErrback(on_connect_fail)
         return d
 
@@ -563,7 +598,9 @@ class Client(object):
         Starts a daemon in the same process as the client.
         """
         self._daemon_proxy = DaemonClassicProxy(self.__event_handlers)
+        self._daemon_proxy.set_connect_callback(self.__on_connect)
         self.__started_in_classic = True
+        self._daemon_proxy.connect()
 
     def start_daemon(self, port, config):
         """
@@ -680,19 +717,37 @@ class Client(object):
     def __getattr__(self, method):
         return DottedObject(self._daemon_proxy, method)
 
-    def set_disconnect_callback(self, cb):
-        """
-        Set a function to be called whenever the client is disconnected from
-        the daemon for any reason.
-        """
-        self.disconnect_callback = cb
+#    def set_disconnect_callback(self, cb):
+#        """
+#        Set a function to be called whenever the client is disconnected from
+#        the daemon for any reason.
+#        """
+#        self.disconnect_callback = cb
+#
+#    def set_connect_callback(self, cb):
+#        self.connect_callback = cb
 
-    def set_connect_callback(self, cb):
-        self.connect_callback = cb
+    def add_connect_callback(self, cb):
+        self.connect_callbacks.append(cb)
+
+    def remove_connect_callback(self, cb):
+        if cb in self.connect_callbacks:
+            self.connect_callbacks.pop(cb)
+
+    def add_disconnect_callback(self, cb):
+        self.disconnect_callbacks.append(cb)
+
+    def remove_disconnect_callback(self, cb):
+        if cb in self.connect_callbacks:
+            self.disconnect_callbacks.pop(cb)
 
     def __on_disconnect(self):
-        if self.disconnect_callback:
-            self.disconnect_callback()
+        for disconnect_callback in self.disconnect_callbacks:
+            disconnect_callback()
+
+    def __on_connect(self):
+        for connect_callback in self.connect_callbacks:
+            connect_callback()
 
     def get_bytes_recv(self):
         """
