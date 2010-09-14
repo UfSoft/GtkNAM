@@ -116,7 +116,8 @@ class Source(DeclarativeBase):
 
     # Relations
     silence_checker = db.relation("SilenceCheckerProperties", backref="source",
-                                  uselist=False, lazy=False)
+                                  uselist=False, lazy=False,
+                                  cascade="all, delete, delete-orphan")
 
     def __init__(self, uri, name, enabled=True, buffer_size=1, buffer_duration=3):
         self.uri = uri
@@ -144,8 +145,10 @@ class SilenceCheckerProperties(DeclarativeBase):
     max_tolerance   = db.Column(db.Integer, default="5")
     silence_level   = db.Column(db.Float, default=-65)
 
-    def __init__(self, source_id):
-        self.source_id = source_id
+    def __init__(self, min_tolerance, max_tolerance, silence_level):
+        self.min_tolerance = min_tolerance
+        self.max_tolerance = max_tolerance
+        self.silence_level = silence_level
 
     def to_dict(self):
         return {
@@ -163,7 +166,7 @@ class MessageKind(DeclarativeBase):
     kind            = db.Column(db.String)
 
 
-class Messages(DeclarativeBase):
+class Message(DeclarativeBase):
     __tablename__   = 'messages'
 
     id              = db.Column(db.Integer, primary_key=True)
@@ -172,3 +175,7 @@ class Messages(DeclarativeBase):
     kind            = db.Column(db.ForeignKey('message_kinds.id'))
     message         = db.Column(db.String)
 
+    def __init__(self, source_id, kind_id, message):
+        self.source = source_id
+        self.kind = kind_id
+        self.message = message

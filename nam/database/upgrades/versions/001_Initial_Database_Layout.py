@@ -47,7 +47,7 @@ class Source(DeclarativeBase):
     buffer_size     = db.Column(db.Float, default=1)    # 1 Mb buffer
     buffer_duration = db.Column(db.Float, default=3)    # 3 secs buffer
 
-    def __init__(self, uri, name, enabled=False, buffer_size=1, buffer_duration=3):
+    def __init__(self, uri, name, enabled=True, buffer_size=1, buffer_duration=3):
         self.uri = uri
         self.name = name
         self.enabled = enabled
@@ -60,48 +60,10 @@ class SilenceCheckerProperties(DeclarativeBase):
     source_id       = db.Column(db.ForeignKey("sources.id"), primary_key=True)
     min_tolerance   = db.Column(db.Integer, default=1)
     max_tolerance   = db.Column(db.Integer, default=4)
-    silence_level   = db.Column(db.Float, default=-40)
+    silence_level   = db.Column(db.Float, default=-60)
 
     def __init__(self, source_id):
         self.source_id = source_id
-
-
-#class Checker(DeclarativeBase):
-#    __tablename__   = 'checkers'
-#
-#    id              = db.Column(db.Integer, primary_key=True)
-#    name            = db.Column(db.String)
-#
-#    def __init__(self, name):
-#        self.name = name
-#
-#
-#class SourceChecker(DeclarativeBase):
-#    __tablename__   = 'source_checkers'
-#
-#    id              = db.Column(db.Integer, primary_key=True)
-#    source_id       = db.Column(db.ForeignKey('sources.id'))
-#    checker_id      = db.Column(db.ForeignKey('checkers.id'))
-#    min_tolerance   = db.Column(db.Integer, default="2")
-#    max_tolerance   = db.Column(db.Integer, default="5")
-#
-#    def __init__(self, source_id, checker_id, min_tolerance, max_tolerance):
-#        self.source_id = source_id
-#        self.checker_id = checker_id
-#        self.min_tolerance = min_tolerance
-#        self.max_tolerance = max_tolerance
-#
-#
-#class CheckerProperties(DeclarativeBase):
-#    __tablename__     = 'checkers_properties'
-#
-#    id                = db.Column(db.Integer, primary_key=True)
-#    source_checker_id = db.Column(db.ForeignKey("source_checkers.id"))
-#    properties        = db.Column(db.Pickle)
-#
-#    def __init__(self, source_checker_id, **properties):
-#        self.source_checker_id = source_checker_id
-#        self.properties = properties
 
 
 class MessageKind(DeclarativeBase):
@@ -145,7 +107,7 @@ def upgrade(migrate_engine):
         session.add(MessageKind(kind))
 
     # Add default sources
-    source = Source("mms://195.245.168.21/antena1", "Antena 1", enabled=False)
+    source = Source("mms://195.245.168.21/antena1", "Antena 1")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
@@ -153,11 +115,8 @@ def upgrade(migrate_engine):
     source = Source("mms://195.245.168.21/antena2", "Antena 2")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
-    session.add(checker)
-
-    source = Source("mms://195.245.168.21/antena2", "Antena 2")
-    session.add(source)
-    checker = SilenceCheckerProperties(source.id)
+    checker.min_tolerance = 3
+    checker.max_tolerance = 6
     session.add(checker)
 
     source = Source("mms://195.245.168.21/antena3", "Antena 3")
@@ -175,35 +134,74 @@ def upgrade(migrate_engine):
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
 
-    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
-                    "Fiona From File 1", enabled=True)
+    source = Source("mms://195.245.168.21/radio3", u"Antena 1 Vida")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
 
-    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
-                    "Fiona From File 2", enabled=True)
+    source = Source("mms://195.245.168.21/lusitania", u"Rádio Lusitânia")
+    session.add(source)
+    checker = SilenceCheckerProperties(source.id)
+    # A rádio lusitânia, estranhamente, quando não tem audio nenhum, continua
+    # com ruído na ordem dos -40 dB's, demasiadamente alto, para um transporte
+    # digital
+    checker.silence_level = -43
+    session.add(checker)
+
+    source = Source("mms://195.245.168.21/radio4", u"Rádio República")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
 
-    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
-                    "Fiona From File 3", enabled=True)
+    source = Source("mms://195.245.168.21/radio5", u"Rádio Vivace")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
 
-    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
-                    "Fiona From File 4", enabled=True)
+    source = Source("mms://195.245.168.21/rdpmad", u"Antena 1 - Madeira")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
 
-    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
-                    "Fiona From File 5", enabled=True)
+    source = Source("mms://195.245.168.21/acores_a1", u"Antena 1 - Açores")
     session.add(source)
     checker = SilenceCheckerProperties(source.id)
     session.add(checker)
+
+    source = Source("mms://195.245.168.21/ant3mad", u"Antena 3 - Madeira")
+    session.add(source)
+    checker = SilenceCheckerProperties(source.id)
+    session.add(checker)
+
+#    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
+#                    "Fiona From File 1", enabled=False)
+#    session.add(source)
+#    checker = SilenceCheckerProperties(source.id)
+#    session.add(checker)
+#
+#    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
+#                    "Fiona From File 2", enabled=False)
+#    session.add(source)
+#    checker = SilenceCheckerProperties(source.id)
+#    session.add(checker)
+#
+#    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
+#                    "Fiona From File 3", enabled=False)
+#    session.add(source)
+#    checker = SilenceCheckerProperties(source.id)
+#    session.add(checker)
+#
+#    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
+#                    "Fiona From File 4", enabled=False)
+#    session.add(source)
+#    checker = SilenceCheckerProperties(source.id)
+#    session.add(checker)
+#
+#    source = Source("file:///home/vampas/projects/GtkNAM/audio/FionaAudioSilenceTests.wav",
+#                    "Fiona From File 5", enabled=False)
+#    session.add(source)
+#    checker = SilenceCheckerProperties(source.id)
+#    session.add(checker)
 
     session.commit()
 
