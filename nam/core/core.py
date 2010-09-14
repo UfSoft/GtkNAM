@@ -145,18 +145,27 @@ class Core(component.Component):
 
     # Sources
     @export(AUTH_LEVEL_ADMIN)
-    def add_source(self, name, uri):
-        self.sourcesmanager.add_source(name, uri)
+    def add_source(self, name, uri, buffer_size, buffer_duration, active,
+                   min_tolerance, max_tolerance, silence_level):
+        log.debug("Client is trying to add a new source")
+        self.sourcesmanager.add_source(name, uri, buffer_size, buffer_duration,
+                                       active, min_tolerance, max_tolerance,
+                                       silence_level)
 
     @export(AUTH_LEVEL_ADMIN)
     def remove_source(self, id):
-        self.sourcesmanager.add_remove(id)
+        log.debug("Client is trying to remove source id: %s", id)
+        self.sourcesmanager.remove_source(id)
 
     @export(AUTH_LEVEL_ADMIN)
-    def alter_source(self, id, name, uri):
-        self.sourcesmanager.alter_source(id, name, uri)
+    def alter_source(self, id, name, uri, buffer_size, buffer_duration, active,
+                     min_tolerance, max_tolerance, silence_level):
+        log.debug("Client is trying to alter source id: %s", id)
+        self.sourcesmanager.alter_source(id, name, uri, buffer_size,
+                                         buffer_duration, active, min_tolerance,
+                                         max_tolerance, silence_level)
 
-    @export
+#    @export
     def get_source(self, id):
         return self.sourcesmanager.get_source(id)
 
@@ -178,13 +187,15 @@ class Core(component.Component):
 
     @export
     def play_source(self, source_id):
-        log.debug("\n\n\nPlay Button Clicked on %s\n\n", source_id)
-        self.eventmanager.emit(SourcePlay(source_id))
+        log.debug("Play Button Clicked on %s", source_id)
+        return self.sourcesmanager.start_source(source_id)
+#        self.eventmanager.emit(SourcePlay(source_id))
 
-    @export()
+    @export
     def stop_source(self, source_id):
-        log.debug("\n\n\nStop Button Clicked on %s", source_id)
-        self.eventmanager.emit(SourceStop(source_id))
+        log.debug("Stop Button Clicked on %s", source_id)
+        return self.sourcesmanager.stop_source(source_id)
+#        self.eventmanager.emit(SourceStop(source_id))
 
 #    @export
 #    def add_torrent_file(self, filename, filedump, options):
