@@ -55,9 +55,9 @@ class EventManager(component.Component):
         # Call any handlers for the event
         if event.name in self.handlers:
             for handler in self.handlers[event.name]:
-                log.trace("Running handler %s for event %s with args: %s", event.name, handler, event.args)
-                reactor.callLater(0, handler, *event.args)
-#                handler(*event.args)
+                handler_name = getattr(handler.im_class, '_%s_component_name' % handler.im_class.__name__, repr(handler))
+                log.trace("Running handler %s for event %s with args: %s", handler_name, event.name, event.args)
+                handler(*event.args)
 
     def register_event_handler(self, event, handler):
         """
