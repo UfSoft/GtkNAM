@@ -77,7 +77,7 @@ class ToolBar(component.Component):
         component.get("ConnectionManager").show()
 
     def on_ManageSourcesToolbutton_clicked(self, widget):
-        pass
+        component.get("SourcesManagerGtk").show()
 
     def on_AccountsToolbutton_clicked(self, widget):
         pass
