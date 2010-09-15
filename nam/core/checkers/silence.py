@@ -162,9 +162,7 @@ class SilenceChecker(component.Component):
                       self.source.src_name, level, msg)
 
     def emit(self, kind, message, levels):
-        self.evtm.emit(AudioSilenceEvent(
-            self.source_id, self.message_kinds[kind], message, levels
-        ))
+        self.evtm.emit(AudioSilenceEvent(self.source_id, kind, message, levels))
         session = component.get("DatabaseManager").session()
         session.add(Message(self.source_id, kind, message))
         session.commit()
