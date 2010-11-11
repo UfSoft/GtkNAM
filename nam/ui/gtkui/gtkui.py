@@ -34,15 +34,19 @@
 #
 
 
-# This needs to be done pretty early
-from nam.utils.logger import set_loglevel, setup_logging
-setup_logging()
 
 # Install the twisted reactor
 from twisted.internet import gtk2reactor
 reactor = gtk2reactor.install()
+from twisted.python import threadable
 
 import gobject
+gobject.threads_init()
+
+# This needs to be done pretty early
+from nam.utils.logger import set_loglevel, setup_logging
+setup_logging()
+
 #import gettext
 #import locale
 import pkg_resources
@@ -82,11 +86,11 @@ from nam.ui.gtkui.mainwindow import MainWindow
 #from sidebar import SideBar
 #from filtertreeview import FilterTreeView
 #from preferences import Preferences
-from nam.ui.gtkui.systemtray import SystemTray
+#from nam.ui.gtkui.systemtray import SystemTray
 #from statusbar import StatusBar
 from connectionmanager import ConnectionManager
 from pluginmanager import PluginManager
-from ipcinterface import IPCInterface
+#from ipcinterface import IPCInterface
 #from deluge.ui.tracker_icons import TrackerIcons
 #from queuedtorrents import QueuedTorrents
 #from addtorrentdialog import AddTorrentDialog
@@ -95,6 +99,7 @@ from ipcinterface import IPCInterface
 from nam.ui.gtkui import dialogs
 from nam.ui.gtkui import common
 from nam.ui.gtkui.messagesview import MessagesView
+from nam.ui.gtkui.audioplayer import AudioPlayer
 from nam.ui.gtkui.sourcesview import SourcesView
 from nam.ui.gtkui.sourcesmanager import SourcesManager
 from nam.ui.gtkui.statusbar import StatusBar
@@ -173,6 +178,13 @@ DEFAULT_PREFS = {
     "sidebar_position": 170,
 #    "show_rate_in_title": False,
 #    "createtorrent.trackers": []
+    "sourcesmanager": {
+        "window_maximized": False,
+        "window_x_pos": 0,
+        "window_y_pos": 0,
+        "window_width": 450,
+        "window_height": 350,
+    }
 }
 
 class GtkUI(object):
@@ -203,10 +215,6 @@ class GtkUI(object):
                     return 1
             SetConsoleCtrlHandler(win_handler)
 
-        # Attempt to register a magnet URI handler with gconf, but do not overwrite
-        # if already set by another program.
-        #common.associate_magnet_links(False)
-
         # Make sure gtkui.conf has at least the defaults set
         self.config = nam.configmanager.ConfigManager("gtkui.conf", DEFAULT_PREFS)
 
@@ -214,17 +222,14 @@ class GtkUI(object):
         # shutdown the daemon.
         self.started_in_classic = self.config["classic_mode"]
 
-        # Start the IPC Interface before anything else.. Just in case we are
-        # already running.
-#        self.queuedtorrents = QueuedTorrents()
-#        self.ipcinterface = IPCInterface(args)
-
         # Initialize gdk threading
         gtk.gdk.threads_init()
         gobject.threads_init()
+        # Initialize twisted threads
+        threadable.init()
 
         # We make sure that the UI components start once we get a core URI
-        client.set_disconnect_callback(self.__on_disconnect)
+        client.add_disconnect_callback(self.__on_disconnect)
 
 #        self.trackericons = TrackerIcons()
 #        self.sessionproxy = SessionProxy()
@@ -240,6 +245,7 @@ class GtkUI(object):
 #        self.systemtray = SystemTray()
 #        self.statusbar = StatusBar()
 #        self.addtorrentdialog = AddTorrentDialog()
+        self.audioplayer = AudioPlayer()
         self.sourcesview = SourcesView()
         self.sourcesmanager = SourcesManager()
         self.messagesview = MessagesView()
@@ -254,9 +260,12 @@ class GtkUI(object):
 
         from twisted.internet.task import LoopingCall
         rpc_stats = LoopingCall(self.print_rpc_stats)
-        rpc_stats.start(10)
+        rpc_stats.start(15)
+        update_rpc_stats = LoopingCall(self.update_rpc_stats)
+        update_rpc_stats.start(1)
 
         reactor.callWhenRunning(self._on_reactor_start)
+#        reactor.callWhenRunning(self.audioplayer.start)
         # Start the gtk main loop
         gtk.gdk.threads_enter()
         reactor.run()
@@ -279,7 +288,10 @@ class GtkUI(object):
         # Make sure the config is saved.
         self.config.save()
 
-    def print_rpc_stats(self):
+    def update_rpc_stats(self, debug_log=False):
+        self.print_rpc_stats(False)
+
+    def print_rpc_stats(self, debug_log=True):
         import time
         try:
             recv = client.get_bytes_recv()
@@ -287,7 +299,9 @@ class GtkUI(object):
         except AttributeError:
             return
 
-        log.debug("sent: %s recv: %s", nam.common.fsize(sent), nam.common.fsize(recv))
+        if debug_log:
+            log.debug("sent: %s recv: %s", nam.common.fsize(sent),
+                      nam.common.fsize(recv))
         t = time.time()
         delta_time = t - self.daemon_bps[0]
         delta_sent = sent - self.daemon_bps[1]
@@ -295,8 +309,15 @@ class GtkUI(object):
 
         sent_rate = nam.common.fspeed(float(delta_sent) / float(delta_time))
         recv_rate = nam.common.fspeed(float(delta_recv) / float(delta_time))
-        log.debug("sent rate: %s recv rate: %s", sent_rate, recv_rate)
+        if debug_log:
+            log.debug("sent rate: %s recv rate: %s", sent_rate, recv_rate)
         self.daemon_bps = (t, sent, recv)
+        if not hasattr(self.statusbar, "traffic_item"):
+            return
+        self.statusbar.traffic_item.set_text(
+            "%s / %s (%s / %s)" % (recv_rate, sent_rate, nam.common.fsize(recv),
+                                   nam.common.fsize(sent))
+        )
 
     def _on_reactor_start(self):
         log.debug("_on_reactor_start")

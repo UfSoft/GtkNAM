@@ -12,11 +12,11 @@ from nam.core.checkers.silence import SilenceChecker
 import gst
 
 # GST Debugging
-#gst.debug_set_active(True)
-#gst.debug_set_default_threshold(gst.LEVEL_WARNING)
+gst.debug_set_active(True)
+gst.debug_set_default_threshold(gst.LEVEL_WARNING)
 #gst.debug_set_default_threshold(gst.LEVEL_INFO)
 #gst.debug_set_default_threshold(gst.LEVEL_DEBUG)
-#gst.debug_set_colored(True)
+gst.debug_set_colored(True)
 
 
 from twisted.internet import reactor

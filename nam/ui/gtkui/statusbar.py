@@ -87,6 +87,12 @@ class StatusBarItem:
         self._image.show()
         self._label.show()
 
+    def hide(self):
+        self._ebox.hide()
+        self._hbox.hide()
+        self._image.hide()
+        self._label.hide()
+
     def set_image_from_file(self, image):
         self._image.set_from_file(image)
 
@@ -129,19 +135,32 @@ class StatusBar(component.Component):
         self.connected_item = StatusBarItem(
             stock=gtk.STOCK_CONNECT, text=_("Connected")
         )
+        self.hbox.pack_start(
+            self.connected_item.get_eventbox(), expand=False, fill=False
+        )
         # Create the not connected item
         self.not_connected_item = StatusBarItem(
             stock=gtk.STOCK_DISCONNECT, text=_("Not Connected"),
             callback=self._on_notconnected_item_clicked)
+        self.hbox.pack_start(
+            self.not_connected_item.get_eventbox(), expand=False, fill=False
+        )
         # Show the not connected status bar
         self.show_not_connected()
+
+
+        self.traffic_item = self.add_item(
+            image=nam.common.get_pixmap("traffic16.png"),
+#            callback=self._on_traffic_item_clicked,
+            tooltip=_("Protocol Traffic Download/Upload"))
+        self.traffic_item.hide()
 
         # Hide if necessary
         self.visible(self.config["show_statusbar"])
 
         client.register_event_handler("ConfigValueChangedEvent", self.on_configvaluechanged_event)
-        client.set_disconnect_callback(self.__on_disconnect)
-        client.set_connect_callback(self.__on_connect)
+        client.add_disconnect_callback(self.__on_disconnect)
+        client.add_connect_callback(self.__on_connect)
 
     def start(self):
         if client.connected():
@@ -164,50 +183,8 @@ class StatusBar(component.Component):
 #            callback=self._on_upload_item_clicked,
 #            tooltip=_("Upload Speed"))
 #
-#        self.traffic_item = self.add_item(
-#            image=deluge.common.get_pixmap("traffic16.png"),
-#            callback=self._on_traffic_item_clicked,
-#            tooltip=_("Protocol Traffic Download/Upload"))
-#
-#        self.dht_item = StatusBarItem(
-#            image=deluge.common.get_pixmap("dht16.png"), tooltip=_("DHT Nodes"))
-#
-#        self.diskspace_item = self.add_item(
-#                stock=gtk.STOCK_HARDDISK,
-#                callback=self._on_diskspace_item_clicked,
-#                tooltip=_("Free Disk Space"))
-#
-#        self.health_item = self.add_item(
-#                stock=gtk.STOCK_DIALOG_ERROR,
-#                text=_("No Incoming Connections!"),
-#                callback=self._on_health_icon_clicked)
-#
-#        self.health = False
-#
-#        # Get some config values
-#        client.core.get_config_value(
-#            "max_connections_global").addCallback(self._on_max_connections_global)
-#        client.core.get_config_value(
-#            "max_download_speed").addCallback(self._on_max_download_speed)
-#        client.core.get_config_value(
-#            "max_upload_speed").addCallback(self._on_max_upload_speed)
-#        client.core.get_config_value("dht").addCallback(self._on_dht)
-#
-#        self.send_status_request()
 
     def stop(self):
-        # When stopped, we just show the not connected thingy
-        try:
-            self.remove_item(self.connected_item)
-#            self.remove_item(self.dht_item)
-#            self.remove_item(self.download_item)
-#            self.remove_item(self.upload_item)
-#            self.remove_item(self.not_connected_item)
-#            self.remove_item(self.health_item)
-#            self.remove_item(self.traffic_item)
-#            self.remove_item(self.diskspace_item)
-        except Exception, e:
-            log.debug("Unable to remove StatusBar item: %s", e)
         self.show_not_connected()
 
     def visible(self, visible):
@@ -219,16 +196,12 @@ class StatusBar(component.Component):
         self.config["show_statusbar"] = visible
 
     def show_not_connected(self):
-        self.remove_item(self.connected_item)
-        self.hbox.pack_start(
-            self.not_connected_item.get_eventbox(), expand=False, fill=False
-        )
+        self.connected_item.get_eventbox().hide()
+        self.not_connected_item.get_eventbox().show()
 
     def show_connected(self):
-        self.remove_item(self.not_connected_item)
-        self.hbox.pack_start(
-            self.connected_item.get_eventbox(), expand=False, fill=False
-        )
+        self.not_connected_item.get_eventbox().hide()
+        self.connected_item.get_eventbox().show()
 
     def add_item(self, image=None, stock=None, text=None, callback=None, tooltip=None):
         """Adds an item to the status bar"""
@@ -268,23 +241,6 @@ class StatusBar(component.Component):
             self.hbox.remove(child)
         self.hbox.foreach(remove)
 
-#    def send_status_request(self):
-#        # Sends an async request for data from the core
-#        client.core.get_num_connections().addCallback(self._on_get_num_connections)
-#        keys = [
-#            "upload_rate",
-#            "download_rate",
-#            "payload_upload_rate",
-#            "payload_download_rate"]
-#
-#        if self.dht_status:
-#            keys.append("dht_nodes")
-#
-#        if not self.health:
-#            keys.append("has_incoming_connections")
-#
-#        client.core.get_session_status(keys).addCallback(self._on_get_session_status)
-#        client.core.get_free_space().addCallback(self._on_get_free_space)
 
     def on_configvaluechanged_event(self, key, value):
         """
@@ -295,190 +251,19 @@ class StatusBar(component.Component):
         if key in self.config_value_changed_dict.keys():
             self.config_value_changed_dict[key](value)
 
-#    def _on_max_connections_global(self, max_connections):
-#        self.max_connections = max_connections
-#        self.update_connections_label()
-#
-#    def _on_get_num_connections(self, num_connections):
-#        self.num_connections = num_connections
-#        self.update_connections_label()
-#
-#    def _on_dht(self, value):
-#        self.dht_status = value
-#        if value:
-#            self.hbox.pack_start(
-#                self.dht_item.get_eventbox(), expand=False, fill=False)
-#            self.send_status_request()
-#        else:
-#            self.remove_item(self.dht_item)
-#
-#    def _on_get_session_status(self, status):
-#        self.download_rate = deluge.common.fsize(status["payload_download_rate"])
-#        self.upload_rate = deluge.common.fsize(status["payload_upload_rate"])
-#        self.download_protocol_rate = (status["download_rate"] - status["payload_download_rate"]) / 1024
-#        self.upload_protocol_rate = (status["upload_rate"] - status["payload_upload_rate"]) / 1024
-#        self.update_download_label()
-#        self.update_upload_label()
-#        self.update_traffic_label()
-#
-#        if "dht_nodes" in status:
-#            self.dht_nodes = status["dht_nodes"]
-#            self.update_dht_label()
-#
-#        if "has_incoming_connections" in status:
-#            self.health = status["has_incoming_connections"]
-#            if self.health:
-#                self.remove_item(self.health_item)
-#
-#    def _on_get_free_space(self, space):
-#        self.diskspace_item.set_text(deluge.common.fsize(space))
-#
-#    def _on_max_download_speed(self, max_download_speed):
-#        self.max_download_speed = max_download_speed
-#        self.update_download_label()
-#
-#    def _on_max_upload_speed(self, max_upload_speed):
-#        self.max_upload_speed = max_upload_speed
-#        self.update_upload_label()
-#
-#    def update_connections_label(self):
-#        # Set the max connections label
-#        if self.max_connections < 0:
-#            label_string = "%s" % self.num_connections
-#        else:
-#            label_string = "%s (%s)" % (self.num_connections, self.max_connections)
-#
-#        self.connections_item.set_text(label_string)
-#
-#    def update_dht_label(self):
-#        # Set the max connections label
-#        self.dht_item.set_text("%s" % (self.dht_nodes))
-#
-#    def update_download_label(self):
-#        # Set the download speed label
-#        if self.max_download_speed <= 0:
-#            label_string = "%s/s" % self.download_rate
-#        else:
-#            label_string = "%s/s (%s %s)" % (
-#                self.download_rate, self.max_download_speed, _("KiB/s"))
-#
-#        self.download_item.set_text(label_string)
-#
-#    def update_upload_label(self):
-#        # Set the upload speed label
-#        if self.max_upload_speed <= 0:
-#            label_string = "%s/s" % self.upload_rate
-#        else:
-#            label_string = "%s/s (%s %s)" % (
-#                self.upload_rate, self.max_upload_speed, _("KiB/s"))
-#
-#        self.upload_item.set_text(label_string)
-#
-#    def update_traffic_label(self):
-#        label_string = "%.2f/%.2f %s" % (self.download_protocol_rate, self.upload_protocol_rate, _("KiB/s"))
-#        self.traffic_item.set_text(label_string)
-#
-#    def update(self):
-#        # Send status request
-#        self.send_status_request()
-#
-#    def _on_download_item_clicked(self, widget, event):
-#        menu = common.build_menu_radio_list(
-#            self.config["tray_download_speed_list"],
-#            self._on_set_download_speed,
-#            self.max_download_speed,
-#            _("KiB/s"), show_notset=True, show_other=True)
-#        menu.show_all()
-#        menu.popup(None, None, None, event.button, event.time)
-#
-#    def _on_set_download_speed(self, widget):
-#        log.debug("_on_set_download_speed")
-#
-#        if widget.get_name() == _("Unlimited"):
-#            value = -1
-#        elif widget.get_name() == _("Other..."):
-#            value = common.show_other_dialog(
-#                _("Set Maximum Download Speed"), _("KiB/s"), None, "downloading.svg", self.max_download_speed)
-#            if value == None:
-#                return
-#        else:
-#            value = float(widget.get_children()[0].get_text().split(" ")[0])
-#
-#        log.debug("value: %s", value)
-#
-#        # Set the config in the core
-#        if value != self.max_download_speed:
-#            client.core.set_config({"max_download_speed": value})
-#
-#    def _on_upload_item_clicked(self, widget, event):
-#        menu = common.build_menu_radio_list(
-#            self.config["tray_upload_speed_list"],
-#            self._on_set_upload_speed,
-#            self.max_upload_speed,
-#            _("KiB/s"), show_notset=True, show_other=True)
-#        menu.show_all()
-#        menu.popup(None, None, None, event.button, event.time)
-#
-#    def _on_set_upload_speed(self, widget):
-#        log.debug("_on_set_upload_speed")
-#
-#        if widget.get_name() == _("Unlimited"):
-#            value = -1
-#        elif widget.get_name() == _("Other..."):
-#            value = common.show_other_dialog(
-#                _("Set Maximum Upload Speed"), _("KiB/s"), None, "seeding.svg", self.max_upload_speed)
-#            if value == None:
-#                return
-#        else:
-#            value = float(widget.get_children()[0].get_text().split(" ")[0])
-#
-#        log.debug("value: %s", value)
-#
-#        # Set the config in the core
-#        if value != self.max_upload_speed:
-#            client.core.set_config({"max_upload_speed": value})
-
-    def _on_connection_item_clicked(self, widget, event):
-        menu = common.build_menu_radio_list(
-            self.config["connection_limit_list"],
-            self._on_set_connection_limit,
-            self.max_connections, show_notset=True, show_other=True)
-        menu.show_all()
-        menu.popup(None, None, None, event.button, event.time)
-
     def __on_disconnect(self):
         self.show_not_connected()
+        self.traffic_item.hide()
 
-    def __on_connect(self, result):
+    def __on_connect(self):
         self.show_connected()
+        self.traffic_item.show_all()
+        connection_info = client.connection_info()
+        if connection_info:
+            tooltip = "User \"%s\" connected to %s:%s" % (connection_info[2],
+                                                          connection_info[0],
+                                                          connection_info[1])
+            self.connected_item.set_tooltip(tooltip)
 
-#    def _on_set_connection_limit(self, widget):
-#        log.debug("_on_set_connection_limit")
-#
-#        if widget.get_name() == _("Unlimited"):
-#            value = -1
-#        elif widget.get_name() == _("Other..."):
-#            value = common.show_other_dialog(
-#                _("Set Maximum Connections"), "", gtk.STOCK_NETWORK, None, self.max_connections)
-#            if value == None:
-#                return
-#        else:
-#            value = int(widget.get_children()[0].get_text().split(" ")[0])
-#
-#        log.debug("value: %s", value)
-#
-#        # Set the config in the core
-#        if value != self.max_connections:
-#            client.core.set_config({"max_connections_global": value})
-#
-#    def _on_health_icon_clicked(self, widget, event):
-#        component.get("Preferences").show("Network")
-#
     def _on_notconnected_item_clicked(self, widget, event):
         component.get("ConnectionManager").show()
-#
-#    def _on_traffic_item_clicked(self, widget, event):
-#        component.get("Preferences").show("Network")
-#
-#    def _on_diskspace_item_clicked(self, widget, event):
-#        component.get("Preferences").show("Downloads")

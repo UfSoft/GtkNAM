@@ -158,20 +158,89 @@ class SourceAdded(NAMEvent):
         """
         self._args = [source]
 
-
-class SourceLoaded(NAMEvent):
+class SourceUpdate(NAMEvent):
     """
-    Emitted when an audio source is loaded from db.
+    Emitted when new audio source is added.
     """
 
-    def __init__(self, source):
+    def __init__(self, source_id, updated_details):
         """
         :param id: the source id
         :type id: int
         :param name: the source name
         :type name: string
         """
-        self._args = [source]
+        self._args = [source_id, updated_details]
+
+class SourceUpdated(NAMEvent):
+    """
+    Emitted when new audio source is added.
+    """
+
+    def __init__(self, source_id):
+        """
+        :param id: the source id
+        :type id: int
+        :param name: the source name
+        :type name: string
+        """
+        self._args = [source_id]
+
+class SourceRemoved(NAMEvent):
+    """
+    Emitted when new audio source is added.
+    """
+
+    def __init__(self, source_id):
+        """
+        :param id: the source id
+        :type id: int
+        :param name: the source name
+        :type name: string
+        """
+        self._args = [source_id]
+
+class SourceLoaded(NAMEvent):
+    """
+    Emitted when an audio source is loaded from db.
+    """
+
+    def __init__(self, source_id):
+        """
+        :param id: the source id
+        :type id: int
+        :param name: the source name
+        :type name: string
+        """
+        self._args = [source_id]
+
+#class SourceEnabled(NAMEvent):
+#    """
+#    Emitted when an audio source is loaded from db.
+#    """
+#
+#    def __init__(self, source_id):
+#        """
+#        :param id: the source id
+#        :type id: int
+#        :param name: the source name
+#        :type name: string
+#        """
+#        self._args = [source_id]
+#
+#class SourceDisabled(NAMEvent):
+#    """
+#    Emitted when an audio source is loaded from db.
+#    """
+#
+#    def __init__(self, source_id):
+#        """
+#        :param id: the source id
+#        :type id: int
+#        :param name: the source name
+#        :type name: string
+#        """
+#        self._args = [source_id]
 
 
 class SourceBufferingEvent(NAMEvent):
@@ -299,3 +368,27 @@ class SourceExists(NAMEvent):
         """
         self._args = [message]
 
+class SourceDoesNotExist(NAMEvent):
+
+    def __init__(self, message):
+        """
+        :param name: the message
+        :type name: string
+        """
+        self._args = [message]
+
+#class AudioAlertPlay(NAMEvent):
+#    def __init__(self):
+#        pass
+#
+#class AudioAlertPlaying(NAMEvent):
+#    def __init__(self):
+#        pass
+#
+#class AudioAlertStop(NAMEvent):
+#    def __init__(self):
+#        pass
+#
+#class AudioAlertStopped(NAMEvent):
+#    def __init__(self):
+#        pass

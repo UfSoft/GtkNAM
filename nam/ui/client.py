@@ -234,6 +234,10 @@ class NAMRPCClientFactory(ClientFactory):
         if self.daemon.disconnect_callback:
             self.daemon.disconnect_callback()
 
+        # XXX: Should we reset traffic counters????
+        #self.bytes_recv = 0
+        #self.bytes_sent = 0
+
 class DaemonProxy(object):
     pass
 

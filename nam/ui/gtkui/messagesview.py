@@ -34,6 +34,8 @@ class MessagesView(component.Component):
         client.core.get_message_kinds().addCallback(self._on_core_get_message_kinds)
         client.core.get_sources_list().addCallback(self._on_core_get_sources_list)
         client.register_event_handler("SourceLoaded", self.on_source_loaded_event)
+        client.register_event_handler("SourceRemoved", self._on_core_remove_source)
+        client.deregister_event_handler("SourceUpdated", self.on_source_loaded_event)
         client.register_event_handler("AudioSilenceEvent", self._on_audio_silence_event)
 
     def pause(self):
@@ -42,17 +44,24 @@ class MessagesView(component.Component):
     def stop(self):
         log.debug("Stopping %s", self.__class__.__name__)
         client.deregister_event_handler("SourceLoaded", self.on_source_loaded_event)
+        client.deregister_event_handler("SourceRemoved", self._on_core_remove_source)
+        client.deregister_event_handler("SourceUpdated", self.on_source_loaded_event)
         client.deregister_event_handler("AudioSilenceEvent", self._on_audio_silence_event)
 
     def shutdown(self):
         log.debug("Shutting Down %s", self.__class__.__name__)
 
     def on_source_loaded_event(self, source_id):
-        client.core.get_source(source_id).addCallback(self._on_core_get_source)
+        client.core.get_source_details(source_id).addCallback(self._on_core_get_source)
 
     def _on_core_get_source(self, source):
-        log.debug("SOURCE: %s", source)
-        self.sources[source.src_id] = source.src_name
+        log.trace("SOURCE: %s", source)
+        if source["id"] not in self.sources:
+            self.sources[source["id"]] = source["name"]
+
+    def _on_core_remove_source(self, source_id):
+        if source_id in self.sources:
+            del self.sources[source_id]
 
     def _on_core_get_sources_list(self, sources_list):
         for source in sources_list:
@@ -77,6 +86,9 @@ class MessagesView(component.Component):
 #        return
         row_iter = self.store.append()
         date, time = stamp.split("|")
+        log.debug("New Message. Date: %s  Time: %s  Kind: %s  Source ID: %s  "
+                  "Source Name: %s  Message: %s", date, time, kind, source_id,
+                  self.sources[source_id], message)
         self.store.set(row_iter,
             COL_MESSAGE_KIND,           kind,
             COL_MESSAGE_KIND_TXT,       self.messages_kinds[kind],
